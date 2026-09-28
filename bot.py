@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Фит-мастер v2.2 — телеграм-бот.
+Фит-мастер v2.3 — телеграм-бот.
 
 Погодные источники (русские):
   • Яндекс Погода (API; если задан YANDEX_WEATHER_KEY) — основной
@@ -16,8 +16,9 @@
   • обязательная подписка на канал (SUB_CHANNEL)
   • состояние в RAM — Railway без волума
 
-Геокодер Open-Meteo используется ТОЛЬКО для перевода названия города
-в координаты (это не погода, это бесплатный справочник координат).
+Важно: команды Telegram — только латиница (a-z, 0-9, _),
+поэтому русские алиасы работают как обычные сообщения:
+«фит», «погода», «что надеть», «город Москва», «стиль techwear», «гардероб».
 """
 
 import asyncio
@@ -655,13 +656,12 @@ async def deliver_to_pm(update: Update, context: ContextTypes.DEFAULT_TYPE,
 HELP_TEXT = (
     "🧥 <b>Фит-мастер</b> — русские источники погоды + ИИ Groq = бомбовские фиты.\n\n"
     "<b>🇷🇺 Погода:</b> Яндекс + Гидрометцентр России + МирПогоды + РП5\n\n"
-    "<b>Команды:</b>\n"
-    "/city &lt;город&gt; — сохранить город\n"
-    "/fit — фит под погоду + закреп ✅ работает стабильно\n"
-    "/style &lt;название&gt; — разбор стиля, кидаю в ЛС 🧪 бета\n"
-    "   стили: " + ", ".join(STYLES[:8]) + "…\n"
-    "/wardrobe — гардероб\n"
-    "/delw &lt;номер&gt; — удалить вещь\n"
+    "<b>Команды (латиницей) или просто слова:</b>\n"
+    "/city Москва или «город Москва» — сохранить город\n"
+    "/fit или «фит» / «погода» / «что надеть» — фит под погоду + закреп ✅\n"
+    "/style streetwear или «стиль streetwear» — разбор стиля в ЛС 🧪 бета\n"
+    "/wardrobe или «гардероб» — мой гардероб\n"
+    "/delw 3 — удалить вещь №3\n"
     "/clearw — очистить гардероб\n\n"
     "📸 <b>Пришли фото вещи</b> — распознаю и добавлю в гардероб 🏷\n\n"
     "🧪 Сборка стиля без погоды — бета. Стабильно работает /fit 👌"
@@ -704,13 +704,6 @@ async def cmd_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         context.user_data["awaiting_city"] = True
         await update.message.reply_text("Напиши название города (Москва, Сочи, Astana…):")
-
-
-async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await require_sub(update, context):
-        return
-    if context.user_data.get("awaiting_city"):
-        await save_city(update, context, update.message.text.strip())
 
 
 async def cmd_fit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -855,24 +848,58 @@ async def cmd_style(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status.edit_text("Стиль не собрался 😵 (ну, бета же 🧪). Попробуй ещё раз.")
 
 
+async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обычные сообщения: ждём город, ловим русские слова-алиасы."""
+    if not await require_sub(update, context):
+        return
+    text = (update.message.text or "").strip()
+    if not text:
+        return
+
+    # ждём название города после /city без аргумента
+    if context.user_data.get("awaiting_city"):
+        await save_city(update, context, text)
+        return
+
+    # русские слова-алиасы (команды в Telegram только латиницей)
+    low = text.lower()
+    if low in ("фит", "погода", "что надеть", "что одеть", "одеться"):
+        await cmd_fit(update, context)
+        return
+    if low == "стиль":
+        await cmd_style(update, context)
+        return
+    if low.startswith("стиль "):
+        context.args = text.split()[1:]
+        await cmd_style(update, context)
+        return
+    if low == "гардероб":
+        await cmd_wardrobe(update, context)
+        return
+    if low.startswith(("город ", "city ")):
+        await save_city(update, context, " ".join(text.split()[1:]))
+        return
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE):
     log.error("Необработанная ошибка: %s", context.error, exc_info=context.error)
 
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
+    # ВАЖНО: команды Telegram — только латиница a-z, 0-9, _
     app.add_handler(CommandHandler(["start", "help"], cmd_start))
-    app.add_handler(CommandHandler(["city", "setcity", "город"], cmd_city))
-    app.add_handler(CommandHandler(["fit", "outfit", "фит", "weather", "погода"], cmd_fit))
-    app.add_handler(CommandHandler(["style", "стиль"], cmd_style))
-    app.add_handler(CommandHandler(["wardrobe", "гардероб"], cmd_wardrobe))
-    app.add_handler(CommandHandler(["delw", "удалить"], cmd_delw))
-    app.add_handler(CommandHandler(["clearw", "очистить"], cmd_clearw))
+    app.add_handler(CommandHandler(["city", "setcity"], cmd_city))
+    app.add_handler(CommandHandler(["fit", "outfit", "weather"], cmd_fit))
+    app.add_handler(CommandHandler(["style"], cmd_style))
+    app.add_handler(CommandHandler(["wardrobe"], cmd_wardrobe))
+    app.add_handler(CommandHandler(["delw"], cmd_delw))
+    app.add_handler(CommandHandler(["clearw"], cmd_clearw))
     app.add_handler(MessageHandler(filters.PHOTO, on_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     app.add_handler(CallbackQueryHandler(cb_check_sub, pattern="^check_sub$"))
     app.add_error_handler(on_error)
-    log.info("Фит-мастер v2.2 запущен 🧥🇷🇺 | Яндекс: %s | канал: %s | аварийный запас: %s",
+    log.info("Фит-мастер v2.3 запущен 🧥🇷🇺 | Яндекс: %s | канал: %s | аварийный запас: %s",
              "вкл" if YANDEX_KEY else "выкл", CHANNEL or "выкл",
              "вкл" if FALLBACK_OPEN_METEO else "выкл")
     app.run_polling()
