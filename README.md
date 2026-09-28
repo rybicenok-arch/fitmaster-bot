@@ -4,15 +4,17 @@
 ИИ Groq собирает бомбовский образ (цвета, материалы, слои, вайб) с учётом
 твоего гардероба, распознанного по фото.
 
-## Функции
-| Команда | Что делает | Статус |
+## Команды
+Telegram разрешает командам только латиницу, поэтому русский — обычными словами:
+
+| Написать | Что делает | Статус |
 |---|---|---|
-| `/city Москва` | сохранить город | ✅ |
-| `/fit` | фит под погоду + закреп в чате | ✅ стабильно |
+| `/city Москва` или «город Москва» | сохранить город | ✅ |
+| `/fit` или «фит» / «погода» / «что надеть» | фит под погоду + закреп | ✅ стабильно |
 | 📸 фото вещи | распознавание → в гардероб | ✅ |
-| `/wardrobe` `/delw N` `/clearw` | управление гардеробом | ✅ |
-| `/style streetwear` | разбор стиля, кидается в ЛС | 🧪 **бета** (без погоды) |
-| подписка на канал | гейт: без подписки бот не пускает | ✅ |
+| `/wardrobe` или «гардероб», `/delw N`, `/clearw` | гардероб | ✅ |
+| `/style streetwear` или «стиль streetwear» | разбор стиля в ЛС | 🧪 **бета** (без погоды) |
+| подписка на канал (`SUB_CHANNEL`) | гейт доступа | ✅ |
 
 ## 🇷🇺 Источники погоды
 | Источник | Тип | Ключ |
@@ -21,32 +23,24 @@
 | Гидрометцентр России (meteoinfo.ru) | HTML-парсинг | не нужен |
 | МирПогоды (world-weather.ru) | HTML-парсинг | не нужен |
 | РП5 (rp5.ru) | HTML-парсинг | не нужен |
-| Open-Meteo | API | не нужен, **только** как аварийный запас (`FALLBACK_OPEN_METEO=1`) |
-
-⚠️ **Честно про парсинг**: Гидрометцентр/МирПогоды/РП5 отдают данные в HTML —
-бот парсит их «по лучшим усилиям»: сайты могут поменять вёрстку, урезать доступ
-с датацентров или не знать малый город. Битый источник **пропускается**, бот не
-падает. Для 100% стабильности добавь ключ Яндекс Погоды. Gismeteo недоступен —
-их API закрыт для публичного использования.
+| Open-Meteo | API | только аварийный запас (`FALLBACK_OPEN_METEO=1`) |
 
 ## Где брать ключи
-1. **BOT_TOKEN** → [@BotFather](https://t.me/BotFather): `/newbot`
-2. **GROQ_API_KEY** → [console.groq.com](https://console.groq.com) → API Keys (бесплатный тариф)
-3. **YANDEX_WEATHER_KEY** → [Яндекс Облако](https://yandex.cloud/ru) → Weather API → активировать (бесплатный тест)
-4. **PEXELS_API_KEY** → [pexels.com/api](https://www.pexels.com/api/) (опц., бесплатно)
+- **BOT_TOKEN** → [@BotFather](https://t.me/BotFather): `/newbot`
+- **GROQ_API_KEY** → [console.groq.com](https://console.groq.com) (бесплатно)
+- **YANDEX_WEATHER_KEY** → [Яндекс Облако](https://yandex.cloud/ru) → Weather API
+- **PEXELS_API_KEY** → [pexels.com/api](https://www.pexels.com/api/) (опц.)
 
 ## Деплой на Railway (без волума)
-1. Залей этот репозиторий в GitHub.
-2. [Railway](https://railway.app) → **New Project → Deploy from GitHub repo**.
-3. Вкладка **Variables** → добавь переменные из `.env.example` (минимум `BOT_TOKEN`, `GROQ_API_KEY`).
-4. Волум **не нужен** — всё в RAM. Проверь, что задеплоился сервис и в логах строка:
-   `Фит-мастер v2.2 запущен 🧥🇷🇺`.
-5. Для подписки: **добавь бота админом в канал** (иначе проверка подписки всегда будет пропускать — это защита от случайного локдауна).
+1. Залей репозиторий в GitHub.
+2. Railway → **New Project → Deploy from GitHub repo**.
+3. **Variables** → минимум `BOT_TOKEN` и `GROQ_API_KEY`.
+4. В логах должна быть строка: `Фит-мастер v2.3 запущен 🧥🇷🇺`.
+5. Для подписки — добавь бота **админом в канал**.
 
 ## Локальный запуск
 bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # заполни BOT_TOKEN и GROQ_API_KEY
-export $(grep -v '^#' .env | xargs)   # Windows: задай через set/setx
+export BOT_TOKEN=... GROQ_API_KEY=...
 python bot.py
